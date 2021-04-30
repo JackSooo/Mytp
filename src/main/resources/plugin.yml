@@ -1,0 +1,19 @@
+name: DEssential
+main: glorydark.MainClass
+version: "1.1.4"
+author: glorydark
+api: ["1.0.0"]
+description: DEssential
+load: POSTWORLD
+loadbefore: ["EconomyAPI"]
+depend: ["EconomyAPI"]
+commands:
+  mytp:
+    usage: "/mytp help 查看帮助"
+    description: "传送系统UI"
+    permission: DEssential.mytp
+    aliases: ["传送"]
+permissions:
+  DEssential.mytp:
+    description: "传送系统"
+    default: true

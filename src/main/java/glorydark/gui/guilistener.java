@@ -521,12 +521,19 @@ public class guilistener implements Listener {
                 MainClass.acceptmenu(p,selectedp,1);
                 break;
             case AcceptListInitiativeMENU: //接受邀请
-            case AcceptListPassiveMENU: //将玩家传送到你 你接受
                 if(response == null){ return; }
                 int AcceptbuttonId = response.getClickedButtonId();
                 String name = response.getClickedButton().getText();
                 if(AcceptbuttonId == 0){
-                    MainClass.tp(p.getServer().getPlayer(name), p);
+                    MainClass.tp(p.getServer().getPlayer(name),p);
+                }
+                break;
+            case AcceptListPassiveMENU: //将玩家传送到你 你接受
+                if(response == null){ return; }
+                AcceptbuttonId = response.getClickedButtonId();
+                name = response.getClickedButton().getText();
+                if(AcceptbuttonId == 0){
+                    MainClass.tp(p, p.getServer().getPlayer(name));
                 }
                 break;
             case WorldTeleportMenu:

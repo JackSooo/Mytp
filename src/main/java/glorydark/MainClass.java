@@ -169,7 +169,7 @@ public class MainClass extends PluginBase implements Listener {
                             if(this.addtrust(args[1])) {
                                 sender.sendMessage("给予玩家【"+args[1]+"】白名单成功!");
                             }else{
-                                sender.sendMessage("设置失败，请检查是否为指令书写问题。格式为 /mytp 添加白名单 <玩家昵称>");
+                                sender.sendMessage("该玩家已经拥有白名单了！");
                             }
                         }else{
                             sender.sendMessage("请填写玩家名字!");
@@ -184,7 +184,7 @@ public class MainClass extends PluginBase implements Listener {
                             if(this.removetrust(args[1])) {
                                 sender.sendMessage("移除玩家【"+args[1]+"】白名单成功!");
                             }else{
-                                sender.sendMessage("设置失败，请检查是否为指令书写问题。格式为 /mytp 添加白名单 <玩家昵称>");
+                                sender.sendMessage("该玩家没有白名单");
                             }
                         }else{
                             sender.sendMessage("请填写玩家名字!");
@@ -199,7 +199,7 @@ public class MainClass extends PluginBase implements Listener {
                             if(this.addWorldtrust(args[1],args[2])) {
                                 sender.sendMessage("给予玩家【"+args[2]+"】 世界【"+args[1]+"白名单成功!");
                             }else{
-                                sender.sendMessage("设置失败，请检查是否为指令书写问题。格式为 /mytp 添加世界白名单 世界名称 玩家昵称");
+                                sender.sendMessage("该世界已经在白名单内了！");
                             }
                         }else{
                             sender.sendMessage("请填写玩家名字!");
@@ -214,7 +214,7 @@ public class MainClass extends PluginBase implements Listener {
                             if(this.removeWorldtrust(args[1],args[2])) {
                                 sender.sendMessage("移除玩家【"+args[2]+"】 世界【"+args[1]+"】白名单成功!");
                             }else{
-                                sender.sendMessage("设置失败，请检查是否为指令书写问题。格式为 /mytp 添加世界白名单 世界名称 玩家昵称");
+                                sender.sendMessage("该世界不在白名单内！");
                             }
                         }else{
                             sender.sendMessage("请填写玩家名字!");
@@ -226,7 +226,7 @@ public class MainClass extends PluginBase implements Listener {
                 default:
                     sender.sendMessage(TextFormat.YELLOW+"------ Mytp Manual ------");
                     sender.sendMessage(TextFormat.YELLOW+"打开菜单 /mytp open");
-                    sender.sendMessage(TextFormat.YELLOW+"设置白名单 /mytp 设置白名单 玩家昵称 (后台进行)");
+                    sender.sendMessage(TextFormat.YELLOW+"添加白名单 /mytp 设置白名单 玩家昵称 (后台进行)");
                     sender.sendMessage(TextFormat.YELLOW+"删除白名单 /mytp 删除白名单 玩家昵称 (后台进行)");
                     sender.sendMessage(TextFormat.YELLOW+"查看帮助 /mytp help 玩家昵称");
                     sender.sendMessage(TextFormat.YELLOW+"------ Mytp Manual ------");
@@ -296,17 +296,17 @@ public class MainClass extends PluginBase implements Listener {
     public static void mainmenu(Player player) {
         if(!player.isOnline()){ return; }
         FormWindowSimple form = new FormWindowSimple("传送系统", "您好，玩家"+player.getName()+"，欢迎使用本传送系统，您的货币剩余"+EconomyAPI.getInstance().myMoney(player));
-        form.addButton(new ElementButton(TextFormat.RED+"§l公共传送点 \n [ 选择前往的公共传送点 ]",new ElementButtonImageData("path","textures/items/diamond.png")));
-        form.addButton(new ElementButton(TextFormat.BLUE+"§l设置家 \n [ 设置自己的家的传送 ]",new ElementButtonImageData("path","textures/items/iron_ingot.png")));
-        form.addButton(new ElementButton(TextFormat.DARK_GREEN+"§l传送到玩家",new ElementButtonImageData("path","textures/blocks/shroomlight.png")));
-        form.addButton(new ElementButton(TextFormat.DARK_PURPLE+"§l将玩家传送到你",new ElementButtonImageData("path","textures/blocks/ender_chest_front.png")));
-        form.addButton(new ElementButton(TextFormat.DARK_AQUA+"§l我的设置 \n [ 设置自动接受邀请或重生点 [",new ElementButtonImageData("path","textures/items/villagebell.png")));
-        form.addButton(new ElementButton(TextFormat.DARK_BLUE+"§l世界传送 \n [ 在世界中来回穿梭 ]"));
-        form.addButton(new ElementButton(TextFormat.DARK_BLUE+"§l返回上次死亡点 \n [ 回到死亡点，重新开始 ]"));
+        form.addButton(new ElementButton("§a§l公共传送点 \n [ 选择前往的公共传送点 ]",new ElementButtonImageData("path","textures/items/diamond.png")));
+        form.addButton(new ElementButton("§b§l设置家 \n [ 设置自己的家的传送 ]",new ElementButtonImageData("path","textures/items/iron_ingot.png")));
+        form.addButton(new ElementButton("§c§l传送到玩家",new ElementButtonImageData("path","textures/blocks/shroomlight.png")));
+        form.addButton(new ElementButton("§d§l将玩家传送到你",new ElementButtonImageData("path","textures/blocks/ender_chest_front.png")));
+        form.addButton(new ElementButton("§4§l我的设置 \n [ 设置自动接受邀请或重生点 [",new ElementButtonImageData("path","textures/items/villagebell.png")));
+        form.addButton(new ElementButton("§3§l世界传送 \n [ 在世界中来回穿梭 ]"));
+        form.addButton(new ElementButton("返回上次死亡点 \n [ 回到死亡点，重新开始 ]"));
         if(player.isOp()){
-            form.addButton(new ElementButton(TextFormat.BOLD+"§l[OP]全体传送"));
-            form.addButton(new ElementButton(TextFormat.BOLD+"§l[OP]传送点设置"));
-            form.addButton(new ElementButton(TextFormat.BOLD+"§l[OP]传送系统设置"));
+            form.addButton(new ElementButton("§a[OP]全体传送"));
+            form.addButton(new ElementButton("§b[OP]传送点设置"));
+            form.addButton(new ElementButton("§c[OP]传送系统设置"));
         }
         guilistener.showFormWindow(player, form, guitype.MainMenu);
     }
@@ -537,19 +537,15 @@ public class MainClass extends PluginBase implements Listener {
         }
     }
 
-    public static void tp(Player asker, Player player){
+    public static void tp(Player asker, Player player){ //将第一个参数传送到第二个参数
         if(!player.isOnline()){ return; }
         if(!asker.isOnline()){ return; }
-        Position position = player.getPosition();
-        double x = position.getX();
-        double y = position.getY();
-        double z = position.getZ();
         Level level = player.getLevel();
         if(!asker.getServer().isLevelGenerated(level.getName())){
             player.sendMessage("对不起，该地图尚未加载");
             return;
         }
-        asker.teleportImmediate(new Location(x,y,z,level));
-        player.sendMessage("§e成功同意该玩家请求");
+        asker.teleportImmediate(player.getPosition().getLocation());
+        asker.sendMessage("§e成功传送至"+player.getName());
     }
 }

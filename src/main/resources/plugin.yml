@@ -1,6 +1,6 @@
 name: DEssential
 main: glorydark.MainClass
-version: "1.1.7Fixed2"
+version: "1.1.8"
 author: glorydark
 api: ["1.0.0"]
 description: DEssential

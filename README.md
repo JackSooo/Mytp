@@ -1,4 +1,4 @@
-# Mytp - Chinese Version R
+# Mytp - Chinese Version README
 An useful teleport plug-in
 ## 插件功能​
  - 死亡点传送、强制回主城机制（可关闭）、个人重生点设置（可设置金币价格）

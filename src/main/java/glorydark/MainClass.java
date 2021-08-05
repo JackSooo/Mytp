@@ -1,29 +1,30 @@
 package glorydark;
 
 import cn.nukkit.Player;
-import cn.nukkit.command.Command;
-import cn.nukkit.command.CommandSender;
+import cn.nukkit.Server;
 import cn.nukkit.event.Listener;
 import cn.nukkit.form.element.*;
 import cn.nukkit.form.window.FormWindowCustom;
 import cn.nukkit.form.window.FormWindowSimple;
 import cn.nukkit.level.Level;
-import cn.nukkit.level.Location;
 import cn.nukkit.level.Position;
-import cn.nukkit.level.Sound;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
-import cn.nukkit.utils.TextFormat;
+import glorydark.commands.MytpCommand;
+import glorydark.commands.WildCommand;
+import glorydark.commands.WorldListCommand;
+import glorydark.commands.WorldTpCommand;
 import glorydark.event.eventlistener;
 import glorydark.gui.guilistener;
 import glorydark.gui.guitype;
 import me.onebone.economyapi.EconomyAPI;
+import sun.applet.Main;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import static glorydark.Tools.buildButton;
+import static glorydark.Tools.getLang;
 
 @SuppressWarnings("ALL")
 public class MainClass extends PluginBase implements Listener {
@@ -47,26 +48,41 @@ public class MainClass extends PluginBase implements Listener {
     public static final int MainSETTINGMENU = 120115;
     public static final int WorldTeleportMenu = 120116;
     public static String path = null;
+    public static MainClass plugin;
     public static double cost = 0;
+    public static Timer timer = new Timer();
+    public static List<Player> godPlayer = new ArrayList<>();
+    public static HashMap<Player, String> editTeleportPoint = new HashMap<>();
 
     @Override
     public void onLoad(){
         saveDefaultConfig();
         this.getLogger().info("DEssential Onloaded!");
         path = this.getDataFolder().getPath();
+        plugin = this;
     }
 
     @Override
     public void onEnable() {
+        Tools.upgradeConfig();
         this.getServer().getPluginManager().registerEvents(this, this); // 注册Event
         this.getServer().getPluginManager().registerEvents(new guilistener(), this); // 注册菜单监听Event
         this.getServer().getPluginManager().registerEvents(new eventlistener(), this); // 注册事件监听Event
+        this.getServer().getCommandMap().register("",new MytpCommand());
+        this.getServer().getCommandMap().register("",new WildCommand());
+        this.getServer().getCommandMap().register("",new WorldListCommand());
+        this.getServer().getCommandMap().register("",new WorldTpCommand());
         this.getLogger().info("DEssential Enabled!");
         this.saveResource("config.yml",false);
+        this.saveResource("lang.yml",false);
         loadLevel();
         Config config = new Config(path+"/config.yml",Config.YAML);
         if(!config.exists("设置重生点花费")){
             config.set("设置重生点花费","1000.000000");
+        }
+        if(!config.exists("强制回主城")){
+            config.set("强制回主城",false);
+            config.save();
         }
         if(!config.exists("版本号")){
             config.set("版本号",20210530);
@@ -77,8 +93,6 @@ public class MainClass extends PluginBase implements Listener {
                 strl.add("打开菜单 /mytp open");
                 strl.add("添加白名单 /mytp 添加白名单 玩家昵称 (后台进行)");
                 strl.add("删除白名单 /mytp 删除白名单 玩家昵称 (后台进行)");
-                strl.add("添加世界白名单 /mytp addwwl 地图名称 玩家昵称 (后台进行)");
-                strl.add("删除世界白名单 /mytp delwwl 地图名称 玩家昵称 (后台进行)");
                 strl.add("------ Mytp Manual ------");
                 config.set("帮助", strl);
             }
@@ -89,8 +103,6 @@ public class MainClass extends PluginBase implements Listener {
             strl.add("打开菜单 /mytp open");
             strl.add("添加白名单 /mytp 添加白名单 玩家昵称 (后台进行)");
             strl.add("删除白名单 /mytp 删除白名单 玩家昵称 (后台进行)");
-            strl.add("添加世界白名单 /mytp addwwl 地图名称 玩家昵称 (后台进行)");
-            strl.add("删除世界白名单 /mytp delwwl 地图名称 玩家昵称 (后台进行)");
             strl.add("------ Mytp Manual ------");
             config.set("帮助", strl);
         }
@@ -102,6 +114,21 @@ public class MainClass extends PluginBase implements Listener {
         }
         if(!config.exists("是否启用打开音效")){
             config.set("是否启用打开音效", true);
+        }
+        if(!config.exists("最多同时存在家")){
+            config.set("最多同时存在家", 10);
+        }
+        if(!config.exists("wild_maxX")){
+            config.set("wild_maxX", 100);
+        }
+        if(!config.exists("wild_minX")){
+            config.set("wild_minX", 10);
+        }
+        if(!config.exists("wild_maxZ")){
+            config.set("wild_maxZ", 100);
+        }
+        if(!config.exists("wild_minZ")){
+            config.set("wild_minZ", 10);
         }
         config.save();
     }
@@ -137,106 +164,7 @@ public class MainClass extends PluginBase implements Listener {
         this.getLogger().info("DEssential Disabled!");
     }
 
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args){
-        if(command.getName().equals("mytp") && args.length >= 1) {
-            switch (args[0]) {
-                case "help":
-                    Config config = new Config(path+"/config.yml",Config.YAML);
-                    if(config.exists("帮助")){
-                        if(!config.getStringList("帮助").isEmpty()) {
-                            for (String s : config.getStringList("帮助")) {
-                                sender.sendMessage(s);
-                            }
-                        }
-                    }else{
-                        sender.sendMessage("帮助文件信息缺少,请删除原有config.yml重启服务器!");
-                    }
-                    break;
-                case "open":
-                    if (sender instanceof Player) {
-                        this.mainmenu(this.getServer().getPlayer(sender.getName()));
-                        Config config1 = new Config(path+"/config.yml",Config.YAML);
-                        if(config1.getBoolean("是否启用打开音效",true)) {
-                            this.getServer().getPlayer(sender.getName()).getLevel().addSound(this.getServer().getPlayer(sender.getName()), Sound.RANDOM_LEVELUP);
-                        }
-                    } else {
-                        sender.sendMessage("请在游戏内使用本指令!");
-                    }
-                    break;
-                case "添加白名单":
-                    if (!(sender instanceof Player)) {
-                        if(args.length == 2) {
-                            if(this.addtrust(args[1])) {
-                                sender.sendMessage("给予玩家【"+args[1]+"】白名单成功!");
-                            }else{
-                                sender.sendMessage("该玩家已经拥有白名单了！");
-                            }
-                        }else{
-                            sender.sendMessage("请填写玩家名字!");
-                        }
-                    }else{
-                        sender.sendMessage("请在控制台使用本指令!");
-                    }
-                    break;
-                case "删除白名单":
-                    if (!(sender instanceof Player)) {
-                        if(args.length == 2) {
-                            if(this.removetrust(args[1])) {
-                                sender.sendMessage("移除玩家【"+args[1]+"】白名单成功!");
-                            }else{
-                                sender.sendMessage("该玩家没有白名单");
-                            }
-                        }else{
-                            sender.sendMessage("请填写玩家名字!");
-                        }
-                    }else{
-                        sender.sendMessage("请在控制台使用本指令!");
-                    }
-                    break;
-                case "addwwl":
-                    if (!(sender instanceof Player)) {
-                        if(args.length == 3) {
-                            if(this.addWorldtrust(args[1],args[2])) {
-                                sender.sendMessage("给予玩家【"+args[2]+"】 世界【"+args[1]+"白名单成功!");
-                            }else{
-                                sender.sendMessage("该世界已经在白名单内了！");
-                            }
-                        }else{
-                            sender.sendMessage("请填写玩家名字!");
-                        }
-                    }else{
-                        sender.sendMessage("请在控制台使用本指令!");
-                    }
-                    break;
-                case "delwwl":
-                    if (!(sender instanceof Player)) {
-                        if(args.length == 3) {
-                            if(this.removeWorldtrust(args[1],args[2])) {
-                                sender.sendMessage("移除玩家【"+args[2]+"】 世界【"+args[1]+"】白名单成功!");
-                            }else{
-                                sender.sendMessage("该世界不在白名单内！");
-                            }
-                        }else{
-                            sender.sendMessage("请填写玩家名字!");
-                        }
-                    }else{
-                        sender.sendMessage("请在控制台使用本指令!");
-                    }
-                    break;
-                default:
-                    sender.sendMessage(TextFormat.YELLOW+"------ Mytp Manual ------");
-                    sender.sendMessage(TextFormat.YELLOW+"打开菜单 /mytp open");
-                    sender.sendMessage(TextFormat.YELLOW+"添加白名单 /mytp 设置白名单 玩家昵称 (后台进行)");
-                    sender.sendMessage(TextFormat.YELLOW+"删除白名单 /mytp 删除白名单 玩家昵称 (后台进行)");
-                    sender.sendMessage(TextFormat.YELLOW+"查看帮助 /mytp help 玩家昵称");
-                    sender.sendMessage(TextFormat.YELLOW+"------ Mytp Manual ------");
-                    break;
-            }
-            return true;
-        }
-        return false;
-    }
-    public Boolean addtrust(String pn){
+    public static Boolean addtrust(String pn){
         Config trustlist = new Config(path+"/trust.yml",Config.YAML);
         List<String> arrayList = new ArrayList<>(trustlist.getStringList("list"));
         if(arrayList.contains(pn)) {
@@ -248,7 +176,7 @@ public class MainClass extends PluginBase implements Listener {
             return true;
         }
     }
-    public Boolean removetrust(String pn){
+    public static Boolean removetrust(String pn){
         Config trustlist = new Config(path+"/trust.yml",Config.YAML);
         List<String> arrayList = new ArrayList<>(trustlist.getStringList("list"));
         if(arrayList.contains(pn)) {
@@ -264,65 +192,50 @@ public class MainClass extends PluginBase implements Listener {
             return false;
         }
     }
-    public Boolean addWorldtrust(String LevelName,String pn){
-        Config worldwhitelist = new Config(path+"/worldwhitelist.yml",Config.YAML);
-        List<String> arrayList = new ArrayList<>(worldwhitelist.getStringList(LevelName));
-        if(arrayList.contains(pn)) {
-            return false;
-        }else{
-            arrayList.add(pn);
-            worldwhitelist.set(LevelName,arrayList);
-            worldwhitelist.save();
-            return true;
-        }
-    }
-    public Boolean removeWorldtrust(String LevelName,String pn){
-        Config worldwhitelist = new Config(path+"/worldwhitelist.yml",Config.YAML);
-        List<String> arrayList = new ArrayList<>(worldwhitelist.getStringList(LevelName));
-        if(arrayList.contains(pn)) {
-            for (int i = 0;i<arrayList.size();i++){
-                if(arrayList.get(i).equals(pn)){
-                    arrayList.remove(i);
-                    worldwhitelist.set(LevelName,arrayList);
-                    worldwhitelist.save();
-                }
-            }
-            return true;
-        }else{
-            return false;
-        }
-    }
 
     public static void mainmenu(Player player) {
         if(!player.isOnline()){ return; }
-        FormWindowSimple form = new FormWindowSimple("传送系统", "您好，玩家"+player.getName()+"，欢迎使用本传送系统，您的货币剩余"+EconomyAPI.getInstance().myMoney(player));
-        form.addButton(new ElementButton("§a§l公共传送点 \n [ 选择前往的公共传送点 ]",new ElementButtonImageData("path","textures/items/diamond.png")));
-        form.addButton(new ElementButton("§b§l设置家 \n [ 设置自己的家的传送 ]",new ElementButtonImageData("path","textures/items/iron_ingot.png")));
-        form.addButton(new ElementButton("§c§l传送到玩家",new ElementButtonImageData("path","textures/blocks/shroomlight.png")));
-        form.addButton(new ElementButton("§d§l将玩家传送到你",new ElementButtonImageData("path","textures/blocks/ender_chest_front.png")));
-        form.addButton(new ElementButton("§4§l我的设置 \n [ 设置自动接受邀请或重生点 [",new ElementButtonImageData("path","textures/items/villagebell.png")));
-        form.addButton(new ElementButton("§3§l世界传送 \n [ 在世界中来回穿梭 ]"));
-        form.addButton(new ElementButton("返回上次死亡点 \n [ 回到死亡点，重新开始 ]"));
-        if(player.isOp()){
-            form.addButton(new ElementButton("§a[OP]全体传送"));
-            form.addButton(new ElementButton("§b[OP]传送点设置"));
-            form.addButton(new ElementButton("§c[OP]传送系统设置"));
+        FormWindowSimple form = new FormWindowSimple(getLang("MainMenu","title"), getLang("MainMenu","content").replace("%player%",player.getName()).replace("%money%",String.valueOf(EconomyAPI.getInstance().myMoney(player))));
+        form.addButton(buildButton(getLang("MainMenu","button1_text"),getLang("MainMenu","button1_pic_path")));
+        form.addButton(buildButton(getLang("MainMenu","button2_text"),getLang("MainMenu","button2_pic_path")));
+        form.addButton(buildButton(getLang("MainMenu","button3_text"),getLang("MainMenu","button3_pic_path")));
+        form.addButton(buildButton(getLang("MainMenu","button4_text"),getLang("MainMenu","button4_pic_path")));
+        form.addButton(buildButton(getLang("MainMenu","button5_text"),getLang("MainMenu","button5_pic_path")));
+        form.addButton(buildButton(getLang("MainMenu","button6_text"),getLang("MainMenu","button6_pic_path")));
+        form.addButton(buildButton(getLang("MainMenu","button7_text"),getLang("MainMenu","button7_pic_path")));
+        if(MainClass.checktrust(player,false)){
+            form.addButton(buildButton(getLang("MainMenu","button8_text"),getLang("MainMenu","button8_pic_path")));
+            form.addButton(buildButton(getLang("MainMenu","button9_text"),getLang("MainMenu","button9_pic_path")));
+            form.addButton(buildButton(getLang("MainMenu","button10_text"),getLang("MainMenu","button10_pic_path")));
+            form.addButton(buildButton(getLang("MainMenu","button11_text"),getLang("MainMenu","button11_pic_path")));
         }
         guilistener.showFormWindow(player, form, guitype.MainMenu);
     }
 
     public static void warpsmenu(Player player) { //传送点系统
         if(!player.isOnline()){ return; }
-        FormWindowSimple form = new FormWindowSimple("§e传送系统", "§e§l传送点系统");
+        FormWindowSimple form = new FormWindowSimple(getLang("Warp_TeleportMenu","title"), getLang("Warp_TeleportMenu","content"));
         Config warpconfig = new Config(path+"/warps.yml",Config.YAML);
         if(warpconfig.get("list") != null) {
             List<String> warplist = new ArrayList<>(warpconfig.getStringList("list"));
             for (String wpn : warplist) {
-                form.addButton(new ElementButton(wpn));
+                if(getLang("Warp_TeleportMenu",wpn+"_name").equals("Key Not Found!")) {
+                    form.addButton(buildButton(wpn, getLang("Warp_TeleportMenu", wpn + "_picpath")));
+                }else{
+                    form.addButton(buildButton(getLang("Warp_TeleportMenu",wpn+"_name"), getLang("Warp_TeleportMenu", wpn + "_picpath")));
+                }
             }
         }
-        form.addButton(new ElementButton("返回"));
+        form.addButton(buildButton(getLang("Tips","menu_button_return_text"),getLang("Tips","menu_button_return_pic_path")));
         guilistener.showFormWindow(player, form, guitype.WarpMenu);
+    }
+
+    public static void tpMenu(Player player){
+        if(!player.isOnline()){ return; }
+        FormWindowSimple form = new FormWindowSimple(getLang("Teleport_Main","title"), getLang("Teleport_Main","content"));
+        form.addButton(buildButton(getLang("Teleport_Main","button1_text"),getLang("Teleport_Main","button1_pic_path")));
+        form.addButton(buildButton(getLang("Teleport_Main","button2_text"),getLang("Teleport_Main","button2_pic_path")));
+        guilistener.showFormWindow(player, form, guitype.TeleportMainMenu);
     }
 
     public static void teleportmenu(Player player, int type) {
@@ -331,7 +244,7 @@ public class MainClass extends PluginBase implements Listener {
                 if (!player.isOnline()) {
                     return;
                 }
-                FormWindowSimple form = new FormWindowSimple("§e§l传送系统", "§e选择你要传送到的玩家");
+                FormWindowSimple form = new FormWindowSimple(getLang("Teleport_ToPlayer","title"), getLang("Teleport_ToPlayer","content"));
                 Map<java.util.UUID, Player> pl = player.getServer().getOnlinePlayers();
                 List<Player> list = new ArrayList<>(pl.values());
                 for (Player p : list) {
@@ -343,7 +256,7 @@ public class MainClass extends PluginBase implements Listener {
                 if (!player.isOnline()) {
                     return;
                 }
-                FormWindowSimple form1 = new FormWindowSimple("§e§l传送系统", "§e选择你要邀请玩家");
+                FormWindowSimple form1 = new FormWindowSimple(getLang("Teleport_PlayerToYou","title"), getLang("Teleport_PlayerToYou","content"));
                 Map<java.util.UUID, Player> pl1 = player.getServer().getOnlinePlayers();
                 List<Player> list1 = new ArrayList<>(pl1.values());
                 for (Player p : list1) {
@@ -361,20 +274,20 @@ public class MainClass extends PluginBase implements Listener {
             case 0:
                 Config config = new Config(path+"/config.yml",Config.YAML);
                 cost = config.getDouble("传送邀请花费");
-                if(EconomyAPI.getInstance().myMoney(asker) < cost){asker.sendMessage("§e您的货币不足");return;}
+                if(EconomyAPI.getInstance().myMoney(asker) < cost){asker.sendMessage(getLang("Tips","short_of_money"));return;}
                 EconomyAPI.getInstance().reduceMoney(asker, cost);
                 if(!player.isOnline()){ return; }
-                FormWindowSimple form = new FormWindowSimple("§e§l传送系统", "§e§l申请列表");
+                FormWindowSimple form = new FormWindowSimple(getLang("Teleport_ToPlayerAccept","title"), getLang("Teleport_ToPlayerAccept","content"));
                 form.addButton(new ElementButton(asker.getName()));
                 guilistener.showFormWindow(player, form, guitype.AcceptListInitiativeMENU);
                 break;
             case 1:
                 Config config1 = new Config(path+"/config.yml",Config.YAML);
                 cost = config1.getDouble("传送邀请花费");
-                if(EconomyAPI.getInstance().myMoney(asker) < cost){asker.sendMessage("§e您的货币不足");return;}
+                if(EconomyAPI.getInstance().myMoney(asker) < cost){asker.sendMessage(getLang("Tips","short_of_money"));return;}
                 EconomyAPI.getInstance().reduceMoney(asker, cost);
                 if(!player.isOnline()){ return; }
-                FormWindowSimple form1 = new FormWindowSimple("§e§l传送系统", "§e§l申请列表");
+                FormWindowSimple form1 = new FormWindowSimple(getLang("Teleport_ToPlayerAccept","title"), getLang("Teleport_ToPlayerAccept","content"));
                 form1.addButton(new ElementButton(asker.getName()));
                 guilistener.showFormWindow(player, form1, guitype.AcceptListPassiveMENU);
                 break;
@@ -385,36 +298,46 @@ public class MainClass extends PluginBase implements Listener {
 
     public static void settingmenu(Player player) {
         Config pconfig = new Config(path+"/player/"+player.getName()+".yml",Config.YAML);
-        FormWindowCustom form = new FormWindowCustom("§e§l传送系统 - 个人设置");
-        form.addElement(new ElementToggle("§e开/关自动接受申请",pconfig.getBoolean("自动接受传送请求")));
-        form.addElement(new ElementToggle("§e重新设置出生点(需花费一定金币)", false));
-        guilistener.showFormWindow(player, form, guitype.SETTINGMENU);
+        FormWindowCustom form = new FormWindowCustom(getLang("PersonalSetting","title"));
+        form.addElement(new ElementToggle(getLang("PersonalSetting","toggle1_text"),pconfig.getBoolean("自动接受传送请求")));
+        Config config = new Config(path+"/config.yml",Config.YAML);
+        if(config.getBoolean("开启设置重生点",false)) {
+            form.addElement(new ElementToggle(getLang("PersonalSetting", "toggle2_text"), false));
+        }
+        guilistener.showFormWindow(player, form, guitype.SettingMenu);
     }
     public static void mainsettingmenu(Player player) {
-        if(checktrust(player)){ return; }
+        if(!checktrust(player,false)){ return; }
         Config pconfig = new Config(path+"/config.yml",Config.YAML);
-        FormWindowCustom form = new FormWindowCustom("§e§l传送系统 - 系统设置");
-        form.addElement(new ElementInput("§e传送邀请花费",pconfig.getString("传送邀请花费")));
-        form.addElement(new ElementInput("§e设置家花费",pconfig.getString("设置家花费")));
-        form.addElement(new ElementInput("§e设置重生点",pconfig.getString("设置重生点花费")));
+        FormWindowCustom form = new FormWindowCustom(getLang("SystemSettingMenu","title"));
+        form.addElement(new ElementInput(getLang("SystemSettingMenu","input1_text"),pconfig.getString("传送邀请花费")));
+        form.addElement(new ElementInput(getLang("SystemSettingMenu","input2_text"),pconfig.getString("设置家花费")));
+        form.addElement(new ElementInput(getLang("SystemSettingMenu","input3_text"),pconfig.getString("设置重生点花费")));
+        form.addElement(new ElementInput(getLang("SystemSettingMenu","input4_text"),pconfig.getString("最多同时存在家")));
+        form.addElement(new ElementToggle(getLang("SystemSettingMenu","toggle5_text"),pconfig.getBoolean("强制回主城")));
+        form.addElement(new ElementToggle(getLang("SystemSettingMenu","toggle6_text"),pconfig.getBoolean("开启设置重生点")));
+        form.addElement(new ElementInput(getLang("SystemSettingMenu","input7_text"),pconfig.getString("返回死亡点花费")));
+        form.addElement(new ElementInput(getLang("SystemSettingMenu","input8_text"),pconfig.getString("随机传送花费")));
         guilistener.showFormWindow(player, form, guitype.MainSETTINGMENU);
     }
-    public static boolean checktrust(Player p){
+    public static boolean checktrust(Player p,Boolean openGui){
         Config trustlist = new Config(path+"/trust.yml",Config.YAML);
         List<String> arrayList = new ArrayList<>(trustlist.getStringList("list"));
         if(arrayList.contains(p.getName())) {
-            return false;
-        }else{
-            FormWindowSimple form = new FormWindowSimple("§e§l传送系统", "§c§l您未取得信任！");
-            form.addButton(new ElementButton("返回"));
-            guilistener.showFormWindow(p, form, guitype.ErrorMenu);
             return true;
+        }else{
+            if(openGui){
+                FormWindowSimple form = new FormWindowSimple(getLang("Tips","menu_default_title"), getLang("Tips","operation_is_not_authorized"));
+                form.addButton(buildButton(getLang("Tips","menu_button_return_text"),getLang("Tips","menu_button_return_pic_path")));
+                guilistener.showFormWindow(p, form, guitype.ErrorMenu);
+            }
+            return false;
         }
     }
     public static void warpssettingmenu(Player player) {
-        if(checktrust(player)){ return; }
+        if(!checktrust(player,true)){ return; }
         Config warpconfig = new Config(path+"/warps.yml",Config.YAML);
-        FormWindowSimple form = new FormWindowSimple("§e§l传送系统 - 公共传送点设置","请选择您所需要编辑的传送点");
+        FormWindowSimple form = new FormWindowSimple(getLang("Warp_SettingSelectMenu","title"),getLang("Warp_SettingSelectMenu","content"));
         if(warpconfig.get("list") != null) {
             List<String> warplist = new ArrayList<>(warpconfig.getStringList("list"));
             for (String wpn : warplist) {
@@ -425,115 +348,129 @@ public class MainClass extends PluginBase implements Listener {
     }
 
     public static void homemainmenu(Player player){
-        FormWindowSimple form = new FormWindowSimple("§e§l传送系统 - 设置家","请选择需要使用的功能");
-        form.addButton(new ElementButton("新建家于此处"));
-        form.addButton(new ElementButton("传送到家"));
-        form.addButton(new ElementButton("删除家"));
-        form.addButton(new ElementButton("返回"));
+        FormWindowSimple form = new FormWindowSimple(getLang("Home_Main","title"),getLang("Home_Main","content"));
+        form.addButton(buildButton(getLang("Home_Main","button1_text"),getLang("Home_Main","button1_pic_path")));
+        form.addButton(buildButton(getLang("Home_Main","button2_text"),getLang("Home_Main","button2_pic_path")));
+        form.addButton(buildButton(getLang("Home_Main","button3_text"),getLang("Home_Main","button3_pic_path")));
+        form.addButton(buildButton(getLang("Tips","menu_button_return_text"),getLang("Tips","menu_button_return_pic_path")));
         guilistener.showFormWindow(player, form, guitype.HomeMainMenu);
     }
     public static void HomeTeleportMenu(Player player){
-        FormWindowSimple form = new FormWindowSimple("§e§l传送系统 - 你的家","请选择需要使用的功能");
+        FormWindowSimple form = new FormWindowSimple(getLang("Home_TeleportMenu","title"),getLang("Home_TeleportMenu","content"));
         Config hc = new Config(path+"/homes/"+player.getName()+".yml",Config.YAML);
         List<String> arr = new ArrayList<>(hc.getStringList("list"));
         for(String n : arr){
             Config pointc = new Config(path+"/homes/"+player.getName()+"/"+n+".yml",Config.YAML);
             String intro = pointc.getString("简介");
-            form.addButton(new ElementButton("名称:"+ n +"\n"+"简介"+intro));
+            form.addButton(new ElementButton("名称:"+n+"\n简介:"+intro));
         }
         guilistener.showFormWindow(player, form, guitype.HomeTeleportMenu);
     }
     public static void HomeCreateMenu(Player player){
-        FormWindowCustom form = new FormWindowCustom("§e§l传送系统 - 创建家");
-        form.addElement(new ElementLabel("当前坐标:"+player.getX()+","+player.getY()+","+player.getZ()+"\n"+"所在世界:"+player.getLevel().getName()));
-        form.addElement(new ElementInput("名称","这里填传送点名，不要重复！"));
-        form.addElement(new ElementInput("简介","无"));
+        if(!((List<String>)Tools.getDefaultConfig("设置家世界")).contains(player.level.getName())){
+            FormWindowSimple returnForm = new FormWindowSimple(getLang("Tips", "menu_default_title"), getLang("Tips", "world_not_allowed"));
+            returnForm.addButton(buildButton(getLang("Tips","menu_button_return_text"),getLang("Tips","menu_button_return_pic_path")));
+            guilistener.showFormWindow(player, returnForm, guitype.ErrorMenu);
+            return;
+        }
+        FormWindowCustom form = new FormWindowCustom(getLang("Home_CreateMenu","title"));
+        form.addElement(new ElementInput(getLang("Home_CreateMenu","input1_text"),getLang("Home_CreateMenu","input1_tip")));
+        form.addElement(new ElementInput(getLang("Home_CreateMenu","input2_text"),getLang("Home_CreateMenu","input2_tip")));
         guilistener.showFormWindow(player, form, guitype.HomeCreateMenu);
     }
     public static void warpsmanagedownmenu(Player player){
-        FormWindowSimple form = new FormWindowSimple("§e§l传送系统 - 传送点系统","请选择您需要的功能");
-        form.addButton(new ElementButton("设置传送点"));
-        form.addButton(new ElementButton("创建传送点"));
-        form.addButton(new ElementButton("删除传送点"));
-        form.addButton(new ElementButton("返回"));
+        FormWindowSimple form = new FormWindowSimple(getLang("Warp_MainMenu","title"),getLang("Warp_MainMenu","content"));
+        form.addButton(buildButton(getLang("Warp_MainMenu","button1_text"),getLang("Warp_MainMenu","button1_pic_path")));
+        form.addButton(buildButton(getLang("Warp_MainMenu","button2_text"),getLang("Warp_MainMenu","button2_pic_path")));
+        form.addButton(buildButton(getLang("Warp_MainMenu","button3_text"),getLang("Warp_MainMenu","button3_pic_path")));
+        form.addButton(buildButton(getLang("Tips","menu_button_return_text"),getLang("Tips","menu_button_return_pic_path")));
         guilistener.showFormWindow(player, form, guitype.WarpsSettingManageMenu);
     }
     public static void homedeletemenu(Player player){
         Config warpscfg = new Config(path+"/homes/"+player.getName()+".yml",Config.YAML);
-        FormWindowCustom form = new FormWindowCustom("§e§l传送系统 - 家删除");
         List<String> arr = new ArrayList<>(warpscfg.getStringList("list"));
-        form.addElement(new ElementDropdown("请选择要删除的内容",arr));
-        guilistener.showFormWindow(player, form, guitype.HomeDeleteMenu);
+        if(arr.size() >= 1) {
+            FormWindowCustom form = new FormWindowCustom(getLang("Home_DeleteMenu","title"));
+            form.addElement(new ElementDropdown(getLang("Home_DeleteMenu", "dropdown_title"), arr));
+            guilistener.showFormWindow(player, form, guitype.HomeDeleteMenu);
+        }else{
+            FormWindowSimple returnForm = new FormWindowSimple(getLang("Tips", "menu_default_title"), getLang("Tips", "have_no_home"));
+            returnForm.addButton(buildButton(getLang("Tips","menu_button_return_text"),getLang("Tips","menu_button_return_pic_path")));
+            guilistener.showFormWindow(player, returnForm, guitype.ErrorMenu);
+        }
     }
-    public void warpssettingdownmenu(Player player, String name) {
-        if(checktrust(player)){ return; }
+    public static void warpssettingdownmenu(Player player, String name) {
+        if(!checktrust(player,true)){ return; }
+        MainClass.editTeleportPoint.put(player,name);
         Config warpscfg = new Config(path+"/warps/"+ name +".yml",Config.YAML);
         if(!warpscfg.exists("x") || !warpscfg.exists("y") || !warpscfg.exists("z") || !warpscfg.exists("world") || !warpscfg.exists("state")){
-            FormWindowSimple form = new FormWindowSimple("§e§l传送系统 - 公共传送点设置", "§c§l该传送点配置出错，请在后台修改！");
-            form.addButton(new ElementButton("返回"));
+            FormWindowSimple form = new FormWindowSimple(getLang("Tips","menu_default_title"), getLang("Tips","settings_error"));
+            form.addButton(buildButton(getLang("Tips","menu_button_return_text"),getLang("Tips","menu_button_return_pic_path")));
             guilistener.showFormWindow(player, form, guitype.ErrorMenu);
             return;
         }
-        FormWindowCustom form = new FormWindowCustom("§e§l传送系统 - 公共传送点设置");
+        FormWindowCustom form = new FormWindowCustom(getLang("Warp_SettingMenu","title"));
         form.addElement(new ElementLabel(name));
-        form.addElement(new ElementInput("§e传送点名称",warpscfg.getString("name")));
-        form.addElement(new ElementInput("§ex轴坐标",String.valueOf(warpscfg.getDouble("x"))));
-        form.addElement(new ElementInput("§ey轴坐标",String.valueOf(warpscfg.getDouble("y"))));
-        form.addElement(new ElementInput("§ez轴坐标",String.valueOf(warpscfg.getDouble("z"))));
-        form.addElement(new ElementInput("§e世界名称",warpscfg.getString("world")));
-        form.addElement(new ElementToggle("§e是否允许进入",warpscfg.getBoolean("state")));
+        form.addElement(new ElementInput(getLang("Warp_SettingMenu","input1_title"),warpscfg.getString("name")));
+        form.addElement(new ElementInput(getLang("Warp_SettingMenu","input2_title"),String.valueOf(warpscfg.getDouble("x"))));
+        form.addElement(new ElementInput(getLang("Warp_SettingMenu","input3_title"),String.valueOf(warpscfg.getDouble("y"))));
+        form.addElement(new ElementInput(getLang("Warp_SettingMenu","input4_title"),String.valueOf(warpscfg.getDouble("z"))));
+        form.addElement(new ElementInput(getLang("Warp_SettingMenu","input5_title"),warpscfg.getString("world")));
+        form.addElement(new ElementToggle(getLang("Warp_SettingMenu","toggle6_title"),warpscfg.getBoolean("state")));
+        String[] strings = warpscfg.getString("title").split(":");
+        form.addElement(new ElementInput(getLang("Warp_SettingMenu","input7_title"),strings[0]));
+        form.addElement(new ElementInput(getLang("Warp_SettingMenu","input8_title"),strings[1]));
         guilistener.showFormWindow(player, form, guitype.WarpSettingDownMenu);
     }
     public static void warpscreatemenu(Player player) {
-        if(checktrust(player)){ return; }
-        FormWindowCustom form = new FormWindowCustom("§e§l传送系统 - 公共传送点创建");
-        form.addElement(new ElementInput("§e传送点标记","这是后台配置时的文件名"));
-        form.addElement(new ElementInput("§e传送点名称","这里填名字"));
-        form.addElement(new ElementInput("§ex轴坐标","0.000000"));
-        form.addElement(new ElementInput("§ey轴坐标","60.000000"));
-        form.addElement(new ElementInput("§ez轴坐标","130.000000"));
-        form.addElement(new ElementInput("§e世界名称","world"));
-        form.addElement(new ElementToggle("§e是否允许进入",false));
+        if(!checktrust(player,true)){ return; }
+        FormWindowCustom form = new FormWindowCustom(getLang("Warp_CreateMenu","title"));
+        form.addElement(new ElementInput(getLang("Warp_CreateMenu","input1_text"),getLang("Warp_CreateMenu","input1_tip")));
+        form.addElement(new ElementInput(getLang("Warp_CreateMenu","input2_text"),getLang("Warp_CreateMenu","input2_tip")));
+        form.addElement(new ElementInput(getLang("Warp_CreateMenu","input3_text"), String.valueOf(player.getX())));
+        form.addElement(new ElementInput(getLang("Warp_CreateMenu","input4_text"),String.valueOf(player.getY())));
+        form.addElement(new ElementInput(getLang("Warp_CreateMenu","input5_text"),String.valueOf(player.getZ())));
+        form.addElement(new ElementInput(getLang("Warp_CreateMenu","input6_text"),player.getLevel().getName()));
+        form.addElement(new ElementToggle(getLang("Warp_CreateMenu","toggle7_text"),false));
+        form.addElement(new ElementInput(getLang("Warp_CreateMenu","input8_text"),getLang("Warp_CreateMenu","input8_tip")));
+        form.addElement(new ElementInput(getLang("Warp_CreateMenu","input9_text"),getLang("Warp_CreateMenu","input9_tip")));
         guilistener.showFormWindow(player, form, guitype.WarpsSettingCreateMenu);
     }
     public static void warpsdeletemenu(Player player) {
         Config warpscfg = new Config(path+"/warps.yml",Config.YAML);
-        if(checktrust(player)){ return; }
-        FormWindowCustom form = new FormWindowCustom("§e§l传送系统 - 公共传送点删除");
+        if(!checktrust(player,true)){ return; }
+        FormWindowCustom form = new FormWindowCustom(getLang("Warp_DeleteMenu","title"));
         List<String> arr = new ArrayList<>(warpscfg.getStringList("list"));
-        form.addElement(new ElementDropdown("请选择要删除的内容",arr));
+        form.addElement(new ElementDropdown(getLang("Warp_DeleteMenu","dropdown_title"),arr));
         guilistener.showFormWindow(player, form, guitype.WarpsSettingDeleteMenu);
     }
     public static void worldmenu(Player player){
         Config config = new Config(path+"/config.yml",Config.YAML);
-        List<String> whiteworld = config.getStringList("世界白名单");
-        FormWindowSimple form = new FormWindowSimple("§e§l传送系统 - 多世界传送","所有允许传送的世界已经展示在此");
-        Map<Integer, Level> levels = player.getServer().getLevels();
-        Collection<Level> wlist = levels.values();
-        for(Level level: wlist){
-            String LevelName = level.getName();
-            if(whiteworld.contains(LevelName)) {
-                form.addButton(new ElementButton(LevelName));
+        List<String> whiteworld = new ArrayList<>(config.getStringList("世界白名单"));
+        FormWindowSimple form = new FormWindowSimple(getLang("World_TeleportMenu","title"),getLang("World_TeleportMenu","content"));
+        for (String level : whiteworld) {
+            if(Server.getInstance().getLevelByName(level) != null) {
+                if (getLang("World_TeleportMenu", level + "_name").equals("Key Not Found!")) {
+                    form.addButton(buildButton(level, getLang("World_TeleportMenu", level + "_picpath")));
+                } else {
+                    form.addButton(buildButton(getLang("World_TeleportMenu", level + "_name"), getLang("World_TeleportMenu", level + "_picpath")));
+                }
             }
         }
-        form.addButton(new ElementButton("返回"));
+        form.addButton(buildButton(getLang("Tips","menu_button_return_text"),getLang("Tips","menu_button_return_pic_path")));
         guilistener.showFormWindow(player, form, guitype.WorldTeleportMenu);
     }
     public static void worldteleport(Player p, Level level){
+        if(level == null){
+            p.sendMessage(getLang("Tips","world_is_not_loaded"));
+            return;
+        }
         if(p.getServer().getLevels().containsValue(level)) {
-            Config worldwhitelist = new Config(path+"/worldwhitelist.yml",Config.YAML);
-            if(worldwhitelist.exists(level.getName())) {
-                if(!worldwhitelist.getStringList(level.getName()).contains(p.getName())){
-                    p.sendMessage("对不起，您不在该世界的白名单内，无法进行传送！");
-                    return;
-                }
-            }
-            Position spawnpos = level.getSpawnLocation();
-            Location pos = new Location(spawnpos.x, spawnpos.y, spawnpos.z, level);
-            p.teleportImmediate(pos);
-            p.sendMessage("正在传送，请稍后...");
+            Position spawnpos = level.getSafeSpawn();
+            p.teleportImmediate(spawnpos.getLocation());
+            p.sendMessage(getLang("Tips","on_teleporting"));
         }else{
-            p.sendMessage("世界不存在！");
+            p.sendMessage(getLang("Tips","world_is_not_loaded"));
         }
     }
 
@@ -542,10 +479,19 @@ public class MainClass extends PluginBase implements Listener {
         if(!asker.isOnline()){ return; }
         Level level = player.getLevel();
         if(!asker.getServer().isLevelGenerated(level.getName())){
-            player.sendMessage("对不起，该地图尚未加载");
+            player.sendMessage(getLang("Tips","world_is_not_loaded"));
             return;
         }
         asker.teleportImmediate(player.getPosition().getLocation());
-        asker.sendMessage("§e成功传送至"+player.getName());
+        asker.sendMessage(getLang("Tips","teleport_to_player").replace("%player%",player.getName()));
+    }
+
+    public static void managerWorldTeleportMenu(Player player){
+        if(!checktrust(player,true)){ return; }
+        FormWindowSimple form = new FormWindowSimple(getLang("World_TeleportMenu","title"),getLang("World_TeleportMenu","content"));
+        for(Level level: Server.getInstance().getLevels().values()){
+            form.addButton(new ElementButton(level.getName()));
+        }
+        guilistener.showFormWindow(player,form, guitype.ManagerWorldMenu);
     }
 }

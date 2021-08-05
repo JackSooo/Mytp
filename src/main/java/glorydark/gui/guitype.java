@@ -4,10 +4,11 @@ public enum guitype {
     MainMenu,
     TeleportInitiativeMENU,
     TeleportPassiveMENU,
+    TeleportMainMenu,
     AcceptListInitiativeMENU,
     AcceptListPassiveMENU,
     WarpMenu,
-    SETTINGMENU,
+    SettingMenu,
     ErrorMenu,
     WarpsSettingMenu,
     WarpSettingDownMenu,
@@ -20,4 +21,5 @@ public enum guitype {
     HomeCreateMenu,
     MainSETTINGMENU,
     WorldTeleportMenu,
+    ManagerWorldMenu,
 }

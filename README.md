@@ -1,5 +1,7 @@
 # Mytp - Chinese Version README
 An useful teleport plug-in
+# Chinese Version By Glorydark:https://www.minebbs.com/resources/mytp-gui.2080/
+# English Version By Bric Root:https://cloudburstmc.org/resources/mytp-portable-delivery-system-with-gui-support.736/
 ## 插件功能​
  - 死亡点传送、强制回主城机制（可关闭）、个人重生点设置（可设置金币价格）
  - 世界传送系统（附带白名单机制）

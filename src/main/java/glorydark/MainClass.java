@@ -56,7 +56,6 @@ public class MainClass extends PluginBase implements Listener {
 
     @Override
     public void onLoad(){
-        saveDefaultConfig();
         this.getLogger().info("DEssential Onloaded!");
         path = this.getDataFolder().getPath();
         plugin = this;
@@ -64,7 +63,6 @@ public class MainClass extends PluginBase implements Listener {
 
     @Override
     public void onEnable() {
-        Tools.upgradeConfig();
         this.getServer().getPluginManager().registerEvents(this, this); // 注册Event
         this.getServer().getPluginManager().registerEvents(new guilistener(), this); // 注册菜单监听Event
         this.getServer().getPluginManager().registerEvents(new eventlistener(), this); // 注册事件监听Event
@@ -75,6 +73,7 @@ public class MainClass extends PluginBase implements Listener {
         this.getLogger().info("DEssential Enabled!");
         this.saveResource("config.yml",false);
         this.saveResource("lang.yml",false);
+        Tools.upgradeConfig();
         loadLevel();
         Config config = new Config(path+"/config.yml",Config.YAML);
         if(!config.exists("设置重生点花费")){

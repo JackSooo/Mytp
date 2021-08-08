@@ -1,6 +1,7 @@
 package glorydark;
 
 import cn.nukkit.Player;
+import cn.nukkit.Server;
 import cn.nukkit.block.Block;
 import cn.nukkit.block.BlockAir;
 import cn.nukkit.form.element.ElementButton;
@@ -92,20 +93,32 @@ public class Tools {
             }
             EconomyAPI.getInstance().reduceMoney(p, cost);
         }
-        Position pos = p.getLevel().getSafeSpawn(new Vector3(rand(config.getInt("wild_minX"), config.getInt("wild_maxX")), 256, rand(config.getInt("wild_minZ"), config.getInt("wild_maxZ"))));
-        while(!(pos.getLevelBlock() instanceof BlockAir)){
-            pos.y++;
+        Location location = getSafePos(p);
+        if(location == null) {
+            p.sendMessage(getLang("Tips","wild_failed"));
+            return;
         }
-        Position pos1 = pos.clone();
-        pos1.y--;
-        while(pos1.getLevelBlock() instanceof BlockAir){
-            pos.y--;
-        }
-        if (p.teleport(pos)) {
+        if (p.teleport(location)) {
             p.sendMessage(getLang("Tips","wild_success"));
         } else {
             p.sendMessage(getLang("Tips","wild_failed"));
         }
+    }
+
+    public static Location getSafePos(Player p){
+        Config config = new Config(MainClass.path+"/config.yml",Config.YAML);
+        Position pos;
+        if(p.getLevel().getName().equals("nether")) {
+            pos = p.getLevel().getSafeSpawn(new Vector3(rand(config.getInt("wild_minX"), config.getInt("wild_maxX")), 126, rand(config.getInt("wild_minZ"), config.getInt("wild_maxZ"))));
+            if(pos.y <= 32){
+                return null;
+            }
+        }else{
+            pos = p.getLevel().getSafeSpawn(new Vector3(rand(config.getInt("wild_minX"), config.getInt("wild_maxX")), 250, rand(config.getInt("wild_minZ"), config.getInt("wild_maxZ"))));
+        }
+        Position pos1 = pos.clone();
+        pos1.y--;
+        return pos.getLocation();
     }
 
     public static Object getDefaultConfig(String key){
